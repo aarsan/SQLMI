@@ -1,2 +1,1 @@
-# SQLMI
-SQL Managed Instance Resources
+# SQL Managed Instance Deployment Scenarios
