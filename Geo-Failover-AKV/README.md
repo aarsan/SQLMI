@@ -15,10 +15,14 @@ SQL MI will be deployed in a primary region and a secondary region. Microsoft re
 
 ![](./media/sqlmi-akv.png)
 
+### Dual Vault
+You will also need to deploy Azure Key Vault. This is a PaaS service so it gets deployed with a public IP address. Like most organizations, you probably want to restrict access to public IPs as much as possible. This can be done using Private Link / Private Endpoint. The design approach on Microsoft's website has a Key Vault in each region so that the primary SQL instance obtains its keys from the vault in its region and same with the secondary. 
 
-You will also need to deploy Azure Key Vault. This is a PaaS service so it gets deployed with a public IP address. Like most organizations, you probably want to restrict access to public IPs as much as possible. This can be done using Private Link / Private Endpoint.
+### Single Key Vault
+Another approach, which I personally prefer is to only have a vault in primary region. You should have a private endpoint for that single vault in both regions, like this:
 
- However, when you're using customer-managed keys (CMK), you're now required to use a Key Vault that cannot be deployed in your VNET. You can use Private Link / Private Endpoint to have a virtual NIC representing your Key Vault get dropped into your VNET to overcome this.
+![](./media/sqlmi-akv.png)
+
 
 Geo-Replication
 Customers need to plan for disaster. With SQL MI, you can create failover groups and add your primary and secondary Managed Instances to that failover group.
@@ -26,6 +30,19 @@ Customers need to plan for disaster. With SQL MI, you can create failover groups
 3. Paired Regions
 4. Azure Key Vault
 
-
-
 ![](./media/sqlmi-akv.png)
+
+
+## Pros and Cons to each approach
+Single Vault
+##### pros:
+- One of biggest benefits to this approach, in my opionion is not having to manage keeping keys in sync in both Key Vaults, which is necessary if you have more than one. There is no built-in mechanism for doing this. You would have to write your own orchestration using another system (Azure Automation, Functions, Logic Apps, etc.).
+
+##### cons:
+- Only Microsoft is in charge of when Key Vault fails over. The customer has no control of this. In other words, if for some reason your Key Vault is inaccessible and Microsoft decides that the entire region is irrecoverable, they will flip to the paired region. There will likely be significant delay between the time your Key Vault goes down and it becomes available in the secondary region. Microsoft says the fail over process takes ~20 minutes but again, there is an unknown period of time between when your Key Vault is inaccessible and it Microsoft decides to fail over.
+
+Dual Vault
+##### pros:
+- You control when you want to fail over, not Microsoft.
+
+##### cons:
