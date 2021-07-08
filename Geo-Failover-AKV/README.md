@@ -31,7 +31,7 @@ Another approach, which I personally prefer is to only have a vault in primary r
 
 ![](./media/sqlmi-akv.png)
 
-
+## TDE Key Rotation
 
 ## Pros and Cons to each approach
 Single Vault
