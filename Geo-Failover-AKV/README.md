@@ -11,12 +11,14 @@ There are two options When customers want to manage their own TDE keys: Customer
 
 
 ## 3. Architecture Overview
-SQL MI will be deployed in a primary region and a secondary region. Microsoft recommends using paired regions as it will significantly improve replication performance. SQL MI requires a subnet in your VNET to be deployed into:
+SQL MI will be deployed in a primary region and a secondary region. Microsoft recommends using [paired regions](https://docs.microsoft.com/en-us/azure/best-practices-availability-paired-regions#what-are-paired-regions) as it will [significantly improve replication performance](source). SQL MI requires a subnet in your VNET to be deployed into as shown here:
 
-![](./media/sqlmi-akv.png)
+![](./media/connectivityarch.png)
 
 ### Dual Vault
-You will also need to deploy Azure Key Vault. This is a PaaS service so it gets deployed with a public IP address. Like most organizations, you probably want to restrict access to public IPs as much as possible. This can be done using Private Link / Private Endpoint. The design approach on Microsoft's website has a Key Vault in each region so that the primary SQL instance obtains its keys from the vault in its region and same with the secondary. 
+You will also need to deploy Azure Key Vault. This is a PaaS service so it gets deployed with a public IP address. Like most organizations, you probably want to restrict access to public IPs as much as possible. This can be done using Private Link / Private Endpoint. The design approach on Microsoft's website has a Key Vault in each region so that the primary SQL instance obtains its keys from the vault in its region and same with the secondary.
+
+![](./media/dual-vault.png)
 
 ### Single Key Vault
 Another approach, which I personally prefer is to only have a vault in primary region. You should have a private endpoint for that single vault in both regions, like this:
@@ -25,10 +27,9 @@ Another approach, which I personally prefer is to only have a vault in primary r
 
 
 Geo-Replication
-Customers need to plan for disaster. With SQL MI, you can create failover groups and add your primary and secondary Managed Instances to that failover group.
+Customers need to plan for disaster. With SQL MI, you can create failover groups and add your primary and secondary Managed Instances to that failover group. Microsoft recommends using [paired regions](https://docs.microsoft.com/en-us/azure/best-practices-availability-paired-regions#what-are-paired-regions) for performance reasons.
 
 3. Paired Regions
-4. Azure Key Vault
 
 ![](./media/sqlmi-akv.png)
 
@@ -44,7 +45,7 @@ Single Vault
 
 Dual Vault
 ##### pros:
-- You control when you want to fail over, not Microsoft. All you have to do is keep your Key Vaults in sync and you can fail SQL over without 
+- You control when you want to fail over, not Microsoft. All you have to do is keep your Key Vaults in sync and you can fail SQL over without worrying about Key Vault.
 
 ##### cons:
 - You are responsible for keeping keys synchronized between the two vaults. This will require some minor scripting and an orchestration engine such as Azure Pipelines, Logic Apps, Azure Functions, etc. to run this script. 
