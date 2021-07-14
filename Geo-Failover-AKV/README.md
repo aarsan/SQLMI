@@ -25,39 +25,14 @@ If you generate the TDE keys in Key Vault, they can't be exported. This is great
 - You don't. This option also has its limitations. If you do nothing, your keys will stay put in the single Key Vault but that might be ok. Azure Key Vault, behind the scenes, replicates itself to a paired region. This means that if Central US was broken beyond repair, Microsoft would fail over resources that take advantage of paired region data replication, such as Key Vault or Blob Storage. While this fail over process [takes ~20 minutes](source), I would argue if you have a primary and only one secondary and they are in paired regions, this is your best option. In this scenario, your secondary instance would point to the vault in the primary region. There used to be a restriction that prevented MI from using TDE keys in a vault in another region but that as [since been lifted](source). If you choose to use private endpoints for Key Vault, you should create the endpoint in the same region as SQL MI as depicted below.
 ![](./media/sqlmi-akv.png)
 If you have the secondary instance connect to the private endpoint in the primary region, that connection will be lost when a fail over occurs and will not come back because private endpoint does not fail over. After ~20 minutes, the private endpoint in the secondary region will pick the connection back up to the key vault which will now be in East US 2 instead of Central US. I still recommend backing up your Key Vault after every update and saving that to an [immutable blob](source). You can still accidentally delete your entire vault or resource group. 
+##### Key Rotation
+If you're planning on rotating your encryption keys, as you would need to to maintain certain security credentials, having a single key vault where your key was created is the easiest way to do periodic key rotation. All you do is [generate a new one and repoint SQL](source).
 
 #### Generate the TDE keys in a supported HSM
 If you have an on-premises HSM and it's [supported by Key Vault](https://docs.microsoft.com/en-us/azure/key-vault/keys/hsm-protected-keys-byok#supported-hsms), you can import your keys into Key Vault using a tool provided by your HSM vendor. For example, Thales provides a [BYOK tool](https://supportportal.thalesgroup.com/csm?id=kb_article_view&sys_kb_id=3892db6ddb8fc45005c9143b0b961987&sysparm_article=KB0021016) for Azure. This option is the ost flexible and most secure. When the keys are generated either in Key Vault or your HSM, no human ever gets to see the private key. However, unlike Key Vault, there are no restrictions on where you can transfer your keys to. In this scenario, I would recommend having a key vault in both regions and use the BYOK tool provided by your HSM vendor to transfer keys to all your vaults. A fail over event would have no relevance here. I would take this a step further for even more availability by having each SQL MI point to the vault in its pairs region as a backup. If for whatever reason, SQL is unable to retrive the TDE key from Key Vault, after 10 minutes, it will attempt to retrieve the key from the backup vault. If there is no backup vault and the 10 minutes has surpassed, SQL marks the databases as inaccessible. This is the design I would go with to be able to peacefully sleep at night. Just make sure you back up your HSM.
 
 #### Generate the TDE keys using openssl.
 If you don't want your keys stuck in Key Vault or your HSM, you could generate them yourself on your laptop using OpenSSL and import them into Key Vault. This will give you the most flexibilty because you don't have to worry about having a supported HSM or Key Vault's backup/restore restrictions. This is the least secure and may not meet some security requirements. When you create your keys with OpenSSL, you are given a private key and there is potential that it could get leaked. If you decide to go with this method, I would still recommend the mesh key vault configuration.
-
-
-### Dual Vault
-You will also need to deploy Azure Key Vault. This is a PaaS service so it gets deployed with a public IP address. Like most organizations, you probably want to restrict access to public IPs as much as possible. This can be done using Private Link / Private Endpoint. The design approach on Microsoft's website has a Key Vault in each region so that the primary SQL instance obtains its keys from the vault in its region and same with the secondary.
-
-![](./media/dual-vault.png)
-
-### Single Key Vault
-Another approach, which I personally prefer is to only have a vault in primary region. You should have a private endpoint for that single vault in both regions, like this:
-
 ![](./media/sqlmi-akv.png)
 
-## TDE Key Rotation
-
-## Pros and Cons to each approach
-Single Vault
-##### pros:
-- One of biggest benefits to this approach, in my opionion is not having to manage keeping keys in sync in both Key Vaults, which is necessary if you have more than one. There is no built-in mechanism for doing this. You would have to write your own orchestration using another system (Azure Automation, Functions, Logic Apps, etc.).
-- Another benefit is not having to pay for multiple Key Vaults.
-
-##### cons:
-- Only Microsoft is in charge of when Key Vault fails over. The customer has no control of this. In other words, if for some reason your Key Vault is inaccessible and Microsoft decides that the entire region is irrecoverable, they will flip to the paired region. There will likely be significant delay between the time your Key Vault goes down and it becomes available in the secondary region. Microsoft says the fail over process takes ~20 minutes but again, there is an unknown period of time between when your Key Vault is inaccessible and when Microsoft decides to fail over.
-- If you decide you want to fail over SQL without a region failure, your Managed Instace will be reaching over to another region for its TDE keys.
-
-Dual Vault
-##### pros:
-- You control when you want to fail over, not Microsoft. All you have to do is keep your Key Vaults in sync and you can fail SQL over without worrying about Key Vault.
-
-##### cons:
-- You are responsible for keeping keys synchronized between the two vaults. This will require some minor scripting and an orchestration engine such as Azure Pipelines, Logic Apps, Azure Functions, etc. to run this script. 
+### Ok, so what if my secondary is not in a paired region?
