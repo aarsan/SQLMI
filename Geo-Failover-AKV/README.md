@@ -20,15 +20,17 @@ When using geo-replication, your primary and secondary(s) could be in different 
 #### Generate the TDE keys in Azure Key Vault.
 If you generate the TDE keys in Key Vault, they can't be exported. This is great for security but makes things very inconvenient. Suppose you have your primary instance in Central US and your secondary in East US 2 like below. If you generated the keys in the Key Vault in Central US and you can't export it, how will you get the keys to the vault in East US 2? 
 - Use the backup / restore feature in Key Vault to move the contents from one vault to another. This option has some [limitations](https://docs.microsoft.com/en-us/azure/key-vault/general/backup?tabs=azure-cli#design-considerations). You can only restore in Azure, on a KV in the same geography, and the same subscription.
-
-2. You don't. 
-
 ![](./media/dual-vault.png)
 
-2. Generate the TDE keys in a supported HSM.
+- You don't. This option also has its limitations. If you do nothing, your keys will stay put in the single Key Vault but that might be ok. Azure Key Vault, behind the scenes, replicates itself to a paired region. This means that if Central US was broken beyond repair, Microsoft would fail over resources that take advantage of paired region data replication, such as Key Vault or Blob Storage. While this fail over process [takes ~20 minutes](source), I would argue if you have a primary and only one secondary and they are in paired regions, this is your best option. In this scenario, your secondary instance would point to the vault in the primary region. There used to be a restriction that prevented MI from using TDE keys in a vault in another region but that as [since been lifted](source). If you choose to use private endpoints for Key Vault, you should create the endpoint in the same region as SQL MI as depicted below.
+![](./media/sqlmi-akv.png)
+If you have the secondary instance connect to the private endpoint in the primary region, that connection will be lost when a fail over occurs and will not come back because private endpoint does not fail over. After ~20 minutes, the private endpoint in the secondary region will pick the connection back up to the key vault which will now be in East US 2 instead of Central US. I still recommend backing up your Key Vault after every update and saving that to an [immutable blob](source). You can still accidentally delete your entire vault or resource group. 
+
+#### Generate the TDE keys in a supported HSM
+If you have an on-premises HSM and it's [supported by Key Vault](https://docs.microsoft.com/en-us/azure/key-vault/keys/hsm-protected-keys-byok#supported-hsms), you can import your keys into Key Vault using a tool provided by your HSM vendor. For example, Thales provides a [BYOK tool](https://supportportal.thalesgroup.com/csm?id=kb_article_view&sys_kb_id=3892db6ddb8fc45005c9143b0b961987&sysparm_article=KB0021016) for Azure. 
 3. Generate the TDE keys using openssl.
 
-![](./media/sqlmi-akv.png)
+
 
 ### Dual Vault
 You will also need to deploy Azure Key Vault. This is a PaaS service so it gets deployed with a public IP address. Like most organizations, you probably want to restrict access to public IPs as much as possible. This can be done using Private Link / Private Endpoint. The design approach on Microsoft's website has a Key Vault in each region so that the primary SQL instance obtains its keys from the vault in its region and same with the secondary.
