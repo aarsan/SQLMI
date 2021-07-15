@@ -35,4 +35,10 @@ If you have an on-premises HSM and it's [supported by Key Vault](https://docs.mi
 If you don't want your keys stuck in Key Vault or your HSM, you could generate them yourself on your laptop using OpenSSL and import them into Key Vault. This will give you the most flexibilty because you don't have to worry about having a supported HSM or Key Vault's backup/restore restrictions. This is the least secure and may not meet some security requirements. When you create your keys with OpenSSL, you are given a private key and there is potential that it could get leaked. If you decide to go with this method, I would still recommend the mesh key vault configuration.
 ![](./media/sqlmi-akv.png)
 
-### Ok, so what if my secondary is not in a paired region?
+### You don't have to use paired regions 
+If your primary is in Central US but your secondary is in West Europe, you can still have geo failover groups but there are [performance issues related to replication](source). There are also additional complexities when using the "create your keys in KV" method. Key Vault is going to replicate to a paired region regardless of where you put your secondary sql instance. If you want each SQL Instance to use a vault in its region, it can be done by it's not easy.
+1. create the key in a vault in your primary region.
+2. Create a 2nd vault in your primary region.
+3. Backup and restore the key to that 2nd vault you just created.
+4. Move that 2nd vault to West Europe.
+5. Point secondary instance to that vault.
