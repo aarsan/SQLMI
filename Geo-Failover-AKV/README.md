@@ -32,8 +32,6 @@ If you have an on-premises HSM and it's [supported by Key Vault](https://docs.mi
 
 ### Generate the TDE keys using openssl.
 If you don't want your keys stuck in Key Vault or your HSM, you could generate them yourself on your laptop using OpenSSL and import them into Key Vault. This will give you the most flexibilty because you don't have to worry about having a supported HSM or work around Key Vault's backup and restore restrictions. This is the least secure and may not meet some security requirements. When you create your keys with OpenSSL, you are given a private key and there is potential that it could get leaked. If you decide to go with this method, I would still recommend the [mesh key vault configuration](source).
-![](./media/sqlmi-akv.png)
-
 <img src="https://github.com/aarsan/SQLMI/blob/main/Geo-Failover-AKV/media/mesh.png">
 
 
