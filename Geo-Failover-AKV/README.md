@@ -35,8 +35,8 @@ If you don't want your keys stuck in Key Vault or your HSM, you could generate t
 ![](./media/sqlmi-akv.png)
 
 ### You don't have to use paired regions 
-If your primary is in Central US but your secondary is in West Europe, you can still have geo failover groups but there are [performance issues related to replication](source). There are also additional complexities when using the ["create your keys in KV" method](#generate-the-tde-keys-in-azure-key-vault). Key Vault is going to replicate to a paired region regardless of where you put your secondary sql instance. If you want each SQL Instance to use a vault in its region, it can be done by it's not easy.
-1. create the key in a vault in your primary region.
+If your primary is in Central US but your secondary is in West Europe, you can still have geo failover groups but there are [performance issues related to replication](source). There are also additional complexities when using the ["create your keys in KV" method](#generate-the-tde-keys-in-azure-key-vault). Key Vault is going to replicate to a paired region regardless of where you put your secondary sql instance. If you want each SQL Instance to use a vault in its region, it can be done:
+1. Create the key in a vault in your primary region.
 2. Create a 2nd vault in your primary region.
 3. Backup and restore the key to that 2nd vault you just created.
 4. Move that 2nd vault to West Europe.
